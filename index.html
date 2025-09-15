@@ -143,7 +143,41 @@ const PROLIFIC = {
   COMPLETION_URL: 'https://app.prolific.com/submissions/complete?cc=YOUR_COMPLETION_CODE'
 };
 
+// --- detect Prolific or generate stand-in IDs ---
+function getRecruitInfo() {
+  const q = Object.fromEntries(new URLSearchParams(location.search));
+  if (q.PROLIFIC_PID) {
+    return {
+      source: 'prolific',
+      PROLIFIC_PID: q.PROLIFIC_PID || '',
+      STUDY_ID: q.STUDY_ID || '',
+      SESSION_ID: q.SESSION_ID || ''
+    };
+  }
+  const gen = (p)=> `${p}-${new Date().toISOString().replace(/[-:.TZ]/g,'')}-${Math.random().toString(36).slice(2,8)}`;
+  return {
+    source: 'direct',
+    PROLIFIC_PID: gen('NP'),
+    STUDY_ID: 'NON_PROLIFIC',
+    SESSION_ID: gen('SESSION')
+  };
+}
+const Recruit = getRecruitInfo();
 
+// --- POST rows to Apps Script ---
+async function submitToServer(rows) {
+  const payload = { meta: Recruit, rows };
+  const res = await fetch(BACKEND_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('Network ' + res.status);
+  const json = await res.json().catch(()=>({ok:false}));
+  if (!json.ok) throw new Error('Server error');
+  return true;
+}
+  
 /* =============== CONSTANTS =============== */
 const N_TRIALS = 5;
 const FIXATION_MS = 500;
@@ -213,6 +247,7 @@ function start(){
     </div>
   `);
   const pid = el('pid'), picker = el('picker'), next = el('next');
+  if (!pid.value && Recruit.PROLIFIC_PID) pid.value = Recruit.PROLIFIC_PID;
   const validate = ()=> next.disabled = pid.value.trim().length===0;
   pid.addEventListener('input', validate); validate();
   picker.addEventListener('change', ()=>{ S.picked = Array.from(picker.files||[]); });
@@ -360,12 +395,38 @@ function likert_describable(){
 
 function finish(){
   view(`
-    <h2>Thanks!</h2>
-    <p>Your responses have been recorded locally. Click below to download a CSV.</p>
-    <div class="row"><button id="dl">Download CSV</button></div>
-    <p class="help">Host this single HTML file anywhere (GitHub Pages, Netlify) and share the link.</p>
+    <h2>Saving your responses…</h2>
+    <p>Please wait a moment. Do not close this tab.</p>
   `);
-  el('dl').addEventListener('click', ()=> dlCSV(`image_descriptions_${S.pid||'anon'}.csv`, S.data));
+
+  submitToServer(S.data)
+    .then(() => {
+      if (Recruit.source === 'prolific') {
+        // send Prolific participants back to completion
+        window.location.href = PROLIFIC.COMPLETION_URL;
+      } else {
+        // direct link users: show a thank-you + their generated ID
+        view(`
+          <h2>Thanks!</h2>
+          <p>Your responses have been saved successfully.</p>
+          <p class="help">Your participant ID is <span class="mono">${S.pid || Recruit.PROLIFIC_PID}</span>.</p>
+        `);
+      }
+    })
+    .catch(err => {
+      // fallback UI if saving fails
+      view(`
+        <h2>We couldn’t save your responses automatically</h2>
+        <p class="help">${String(err)}</p>
+        <div class="row">
+          <button id="retry">Try Again</button>
+          <button id="download">Download CSV (backup)</button>
+        </div>
+        <p class="help">If this keeps failing, please contact us with your Participant ID: <span class="mono">${S.pid || Recruit.PROLIFIC_PID}</span>.</p>
+      `);
+      el('retry').addEventListener('click', ()=> finish());
+      el('download').addEventListener('click', ()=> dlCSV(`image_descriptions_${S.pid||Recruit.PROLIFIC_PID}.csv`, S.data));
+    });
 }
 
 /* =============== FLOW =============== */
