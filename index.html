@@ -164,24 +164,42 @@ function getRecruitInfo() {
 }
 const Recruit = getRecruitInfo();
 
-// --- POST rows to Apps Script ---
-async function submitToServer(rows) {
-  // If you already have Recruit, keep using it. Otherwise tag as direct.
-  const meta = (typeof Recruit !== 'undefined') ? Recruit : { source: 'direct' };
+// Fire-and-forget POST via hidden form + iframe (no CORS, no preflight in any browser)
+function submitToServer(rows) {
+  return new Promise((resolve) => {
+    const meta = (typeof Recruit !== 'undefined') ? Recruit : { source: 'direct' };
+    const payload = JSON.stringify({ meta, rows });
 
-  // Build a simple form payload (no custom headers)
-  const form = new FormData();
-  form.append('payload', JSON.stringify({ meta, rows }));
+    // ensure a hidden iframe exists
+    let iframe = document.getElementById('gsink');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.name = 'gsink';
+      iframe.id = 'gsink';
+      document.body.appendChild(iframe);
+    }
 
-  // Fire-and-forget POST: no preflight, no CORS readback
-  await fetch(BACKEND_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: form
+    // build a hidden form
+    const form = document.createElement('form');
+    form.action = BACKEND_URL;            // your /exec URL
+    form.method = 'POST';
+    form.enctype = 'multipart/form-data';
+    form.target = 'gsink';                // submit into hidden iframe
+    form.style.display = 'none';
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payload';               // Apps Script reads e.parameter.payload
+    input.value = payload;
+
+    form.appendChild(input);
+    document.body.appendChild(form);
+
+    // submit and clean up
+    form.submit();
+    setTimeout(() => { form.remove(); resolve(true); }, 250);
   });
-
-  // Can't read the response in no-cors; assume success if no network error
-  return true;
 }
 
 /* =============== CONSTANTS =============== */
