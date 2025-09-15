@@ -138,7 +138,7 @@
 <script>
 /* ================= CONFIG ================= */
 const IMAGES = [ /* e.g., "images/a.jpg", "images/b.png" */ ];
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbyUesYWl0cLNNeABHRD0KUzvptik_aXQxYtC7irqVulgYCjVhoy4_U8k-NMGp7wYfLO/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxH4glY3aiLMYCf_6W3RCFeV83C9tne4oLTylwpA3dUIfbzWvenHPKzOHBhBcaqrOeA/exec';
 const PROLIFIC = {
   COMPLETION_URL: 'https://app.prolific.com/submissions/complete?cc=YOUR_COMPLETION_CODE'
 };
@@ -166,24 +166,24 @@ const Recruit = getRecruitInfo();
 
 // --- POST rows to Apps Script ---
 async function submitToServer(rows) {
-  const payload = {
-    meta: getRecruitInfo ? getRecruitInfo() : { source:'direct' }, // if you already have Recruit, just use it
-    rows
-  };
-  const res = await fetch(BACKEND_URL, {
+  // If you already have Recruit, keep using it. Otherwise tag as direct.
+  const meta = (typeof Recruit !== 'undefined') ? Recruit : { source: 'direct' };
+
+  // Build a simple form payload (no custom headers)
+  const form = new FormData();
+  form.append('payload', JSON.stringify({ meta, rows }));
+
+  // Fire-and-forget POST: no preflight, no CORS readback
+  await fetch(BACKEND_URL, {
     method: 'POST',
-    // Use text/plain to avoid CORS preflight headaches
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload)
+    mode: 'no-cors',
+    body: form
   });
-  if (!res.ok) throw new Error('Network ' + res.status);
-  // Apps Script returns JSON; try to parse but fall back gracefully
-  let json = {};
-  try { json = await res.json(); } catch { /* ignore if parsing blocked */ }
-  if (json.ok === false) throw new Error('Server error');
+
+  // Can't read the response in no-cors; assume success if no network error
   return true;
 }
-  
+
 /* =============== CONSTANTS =============== */
 const N_TRIALS = 5;
 const FIXATION_MS = 500;
