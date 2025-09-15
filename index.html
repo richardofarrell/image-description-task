@@ -166,15 +166,21 @@ const Recruit = getRecruitInfo();
 
 // --- POST rows to Apps Script ---
 async function submitToServer(rows) {
-  const payload = { meta: Recruit, rows };
+  const payload = {
+    meta: getRecruitInfo ? getRecruitInfo() : { source:'direct' }, // if you already have Recruit, just use it
+    rows
+  };
   const res = await fetch(BACKEND_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // Use text/plain to avoid CORS preflight headaches
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(payload)
   });
   if (!res.ok) throw new Error('Network ' + res.status);
-  const json = await res.json().catch(()=>({ok:false}));
-  if (!json.ok) throw new Error('Server error');
+  // Apps Script returns JSON; try to parse but fall back gracefully
+  let json = {};
+  try { json = await res.json(); } catch { /* ignore if parsing blocked */ }
+  if (json.ok === false) throw new Error('Server error');
   return true;
 }
   
