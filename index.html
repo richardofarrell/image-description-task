@@ -255,28 +255,38 @@ function dlCSV(name, rows){
 
 /* =============== SCREENS =============== */
 function start(){
+  const showPicker = !(Array.isArray(IMAGES) && IMAGES.length >= N_TRIALS);
   view(`
     <h1>Welcome</h1>
     <div class="field">
       <label class="mono">Participant ID</label>
       <input id="pid" type="text" placeholder="e.g., P001" autofocus />
     </div>
+    ${showPicker ? `
     <div class="field">
       <label>Images</label>
       <input id="picker" type="file" accept=".jpg,.jpeg,.png,.gif,.webp" multiple />
       <div class="help">Pick at least ${N_TRIALS} images, or leave empty to use the IMAGES list in the file.</div>
-    </div>
+    </div>` : `
+    <div class="help">Using preloaded images from the script.</div>`}
     <div class="row">
       <button id="next" disabled>Next</button>
     </div>
   `);
-  const pid = el('pid'), picker = el('picker'), next = el('next');
+
+  const pid = el('pid'), next = el('next');
   if (!pid.value && Recruit.PROLIFIC_PID) pid.value = Recruit.PROLIFIC_PID;
   const validate = ()=> next.disabled = pid.value.trim().length===0;
   pid.addEventListener('input', validate); validate();
-  picker.addEventListener('change', ()=>{ S.picked = Array.from(picker.files||[]); });
+
+  if (showPicker) {
+    const picker = document.getElementById('picker');
+    picker.addEventListener('change', ()=>{ S.picked = Array.from(picker.files||[]); });
+  }
+
   next.addEventListener('click', ()=>{ S.pid = pid.value.trim(); demographics(); });
 }
+
 
 function demographics(){
   view(`
@@ -455,19 +465,31 @@ function finish(){
 
 /* =============== FLOW =============== */
 function startTask(){
-  // Build image list from picker or hard-coded IMAGES
-  let list = [];
-  if (S.picked.length){
+  // ALWAYS use the hard-coded IMAGES first. Fallback to picked files only if IMAGES is empty.
+  let list = Array.isArray(IMAGES) && IMAGES.length ? IMAGES.slice() : [];
+
+  if (!list.length && S.picked.length){
     list = S.picked
       .filter(f => /(\.jpe?g|\.png|\.gif|\.webp)$/i.test(f.name))
       .map(f => URL.createObjectURL(f));
-  } else {
-    list = IMAGES.slice();
   }
-  if (list.length < N_TRIALS) return alert(`Need at least ${N_TRIALS} images.`);
+
+  if (list.length < N_TRIALS) {
+    alert(`Need at least ${N_TRIALS} images. We currently see ${list.length}.
+If you’re using preloaded images, make sure the files exist at those paths and that the 'images/' folder is in the same directory as index.html (case-sensitive).`);
+    return;
+  }
+
   S.order = pick(list, N_TRIALS);
   S.trial = 0;
-  S.order.forEach(src=>{ const im=new Image(); im.src=src; });
+
+  // Preload and report any broken URLs to help debugging
+  S.order.forEach(src=>{
+    const im = new Image();
+    im.onerror = ()=> console.warn("Image failed to load:", src);
+    im.src = src;
+  });
+
   fixation();
 }
 
