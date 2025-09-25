@@ -80,57 +80,78 @@
   .counter { font-size: 15px; color: var(--muted); }
   .counter.warning { color:#b45309; }
 
-  /* Slider (Likert 1–5) */
+  /* Slider wrapper */
   .slider-wrap {
-    width: 100%; max-width: 820px;
-    display:flex; flex-direction:column; align-items:center; gap:14px;
-  }
-  /* Slider row stays wide */
-  .slider-row {
     width: 100%;
     max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  /* Slider row and rail */
+  .slider-row {
+    width: 100%;
     display: flex;
     justify-content: center;
   }
   
-  /* Make the rail fill the row; small side padding is fine */
+  /* Base range element */
   input[type="range"] {
+    -webkit-appearance: none; /* reset Safari/Chrome */
+    appearance: none;
     width: 100%;
+    background: transparent;
     margin: 0 10px;
+    height: 18px; /* matches track height for easier vertical centering */
+    outline: none;
   }
+  
   /* Track */
   input[type="range"]::-webkit-slider-runnable-track {
-    height: 18px; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-weak));
+    height: 18px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-weak));
   }
   input[type="range"]::-moz-range-track {
-    height: 18px; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-weak));
+    height: 18px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-weak));
   }
-  /* Thumb */
+  
+  /* Thumb — size + perfect vertical centering on 18px track */
   input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none;
-    width: 36px; height: 36px; border-radius: 50%;
-    background: #fff; border: 4px solid var(--accent);
-    margin-top: -9px; /* center thumb on 18px track */
+    -webkit-appearance: none;
+    appearance: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #fff;
+    border: 4px solid var(--accent);
+    margin-top: -9px;        /* (thumb 36 - track 18)/2 = 9 -> negative to center */
     box-shadow: var(--shadow);
     cursor: pointer;
   }
   input[type="range"]::-moz-range-thumb {
-    width: 36px; height: 36px; border-radius: 50%;
-    background: #fff; border: 4px solid var(--accent);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #fff;
+    border: 4px solid var(--accent);
     box-shadow: var(--shadow);
     cursor: pointer;
   }
- /* Absolute label overlay aligned to the same width as the slider */
+  
+  /* Precise label overlay aligned to slider width */
   .tick-labels {
     position: relative;
     width: 100%;
-    max-width: 900px;
-    height: 2.2em;         /* space for 2 lines */
+    height: 2.4em;          /* room for 2 lines */
     margin-top: 6px;
-    overflow: visible;      /* allow end labels to overhang slightly */
+    overflow: visible;      /* endpoints can overhang slightly */
   }
   
-  /* Each label is centered on its tick */
   .tick-label {
     position: absolute;
     top: 0;
@@ -140,8 +161,8 @@
     line-height: 1.15;
     white-space: normal;
     word-break: break-word;
-    max-width: 16ch;        /* keep labels tidy; adjust if needed */
-    pointer-events: none;   /* no accidental selections */
+    max-width: 16ch;
+    pointer-events: none;
   }
   /* Monospace helper */
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
@@ -388,20 +409,25 @@ function describe(src){
 }
 
 /* Slider component (1–5) */
-function sliderBlock({id, labels, initial=3}) {
-  // labels = array of 5 strings
+function sliderBlock({ id, labels, initial = 3 }) {
+  // labels: array of 5 strings. Use 'word1|word2' to split into two lines.
+  const positions = [0, 25, 50, 75, 100];
+  const labelHTML = labels.map((text, i) => {
+    const html = String(text).replace(/\|/g, '<br>');
+    return `<span class="tick-label" style="left:${positions[i]}%">${html}</span>`;
+  }).join('');
+
   return `
     <div class="slider-wrap">
       <div class="slider-row">
         <input id="${id}" type="range" min="1" max="5" step="1" value="${initial}" />
       </div>
-      <div class="ticks">
-        ${labels.map(l => `<span>${l}</span>`).join('')}
+      <div class="tick-labels">
+        ${labelHTML}
       </div>
     </div>
   `;
 }
-
 
 function likert_words(){
   view(`
