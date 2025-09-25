@@ -373,30 +373,30 @@ function describe(src){
 }
 
 /* Slider component (1–5) */
-function sliderBlock({id, anchors, initial=3}) {
-  // anchors is an array of 3 strings: [left, middle, right]
+function sliderBlock({id, labels, initial=3}) {
+  // labels = array of 5 strings
   return `
     <div class="slider-wrap">
       <div class="slider-row">
         <input id="${id}" type="range" min="1" max="5" step="1" value="${initial}" />
       </div>
       <div class="ticks">
-        <span>${anchors[0]}</span>
-        <span>${anchors[1]}</span>
-        <span>${anchors[2]}</span>
+        ${labels.map(l => `<span>${l}</span>`).join('')}
       </div>
     </div>
   `;
 }
 
+
 function likert_words(){
   view(`
     <h2>How many more words would you need to describe everything you saw in the image?</h2>
     ${sliderBlock({
-      id:'lk1',
-      anchors:['Not many more', 'Quite a few more', 'A lot more'],
-      initial:3
-    })}
+      id: 'lk1',
+      labels: ['None', 'A few more', 'Quite a few more', 'Many more', 'A lot more'],
+      initial: 3
+    })
+    }
     <div class="row"><button id="next">Next</button></div>
   `);
   const slider = el('lk1');
@@ -410,10 +410,11 @@ function likert_describable(){
   view(`
     <h2>To what degree did you see things in the image that are difficult or impossible to describe in words?</h2>
     ${sliderBlock({
-      id:'lk2',
-      anchors:['Not at all difficult', 'Somewhat difficult', 'Very difficult'],
-      initial:3
-    })}
+      id: 'lk2',
+      labels: ['Not at all describable', 'Slightly describable', 'Moderately describable', 'Largely describable', 'Entirely describable'],
+      initial: 3
+    })
+    }
     <div class="row"><button id="next">Next</button></div>
   `);
   const slider = el('lk2');
