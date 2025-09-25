@@ -167,19 +167,6 @@
     max-width: 20ch;           /* a bit wider so it doesn't turn into a column */
     pointer-events: none;
   }
-  
-  /* Endpoint alignment */
-  .tick-label.start {
-    left: 0%;
-    transform: none;           /* no centering */
-    text-align: left;
-  }
-  .tick-label.end {
-    left: 100%;
-    transform: translateX(-100%);
-    text-align: right;
-  }
-  
 
   /* Monospace helper */
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
@@ -473,7 +460,7 @@ function likert_describable(){
     <h2>To what extent was what you saw in the image difficult or impossible to describe in words?</h2>
     ${sliderBlock({
       id: 'lk2',
-      labels: ['The image was | completely | describable', 'The image was | mostly | describable', 'The image was | moderately | describable', 'The image was | mostly | undescribable', 'The image was | entirely | undescribable'],
+      labels: ['The image was | completely describable', 'The image was | mostly describable', 'The image was | moderately describable', 'The image was | mostly undescribable', 'The image was | entirely undescribable'],
       initial: 3
     })
     }
