@@ -80,7 +80,7 @@
   .counter { font-size: 15px; color: var(--muted); }
   .counter.warning { color:#b45309; }
 
-  /* Fancy slider (Likert 1–5) */
+  /* Slider (Likert 1–5) */
   .slider-wrap {
     width: 100%; max-width: 820px;
     display:flex; flex-direction:column; align-items:center; gap:14px;
@@ -372,16 +372,18 @@ function describe(src){
   });
 }
 
-/* Pretty slider component (1–5) */
-function sliderBlock({id, labelLeft, labelRight, initial=3}){
+/* Slider component (1–5) */
+function sliderBlock({id, anchors, initial=3}) {
+  // anchors is an array of 3 strings: [left, middle, right]
   return `
     <div class="slider-wrap">
       <div class="slider-row">
         <input id="${id}" type="range" min="1" max="5" step="1" value="${initial}" />
-        <output id="${id}_val">${initial}</output>
       </div>
       <div class="ticks">
-        <span>${labelLeft}</span><span>2</span><span>3</span><span>4</span><span>${labelRight}</span>
+        <span>${anchors[0]}</span>
+        <span>${anchors[1]}</span>
+        <span>${anchors[2]}</span>
       </div>
     </div>
   `;
@@ -389,12 +391,15 @@ function sliderBlock({id, labelLeft, labelRight, initial=3}){
 
 function likert_words(){
   view(`
-    <h2>How many more words would you need to describe the image you just saw?</h2>
-    ${sliderBlock({id:'lk1', labelLeft:'1 = none', labelRight:'5 = many more', initial:3})}
+    <h2>How many more words would you need to describe everything you saw in the image?</h2>
+    ${sliderBlock({
+      id:'lk1',
+      anchors:['Not many more', 'Quite a few more', 'A lot more'],
+      initial:3
+    })}
     <div class="row"><button id="next">Next</button></div>
   `);
-  const slider = el('lk1'), val = el('lk1_val');
-  slider.addEventListener('input', ()=> val.textContent = slider.value);
+  const slider = el('lk1');
   el('next').addEventListener('click', ()=>{
     Object.assign(S.data[S.data.length-1], { need_more_words_1to5: slider.value });
     likert_describable();
@@ -403,12 +408,15 @@ function likert_words(){
 
 function likert_describable(){
   view(`
-    <h2>To what degree was the image describable in words?</h2>
-    ${sliderBlock({id:'lk2', labelLeft:'1 = not at all', labelRight:'5 = entirely', initial:3})}
+    <h2>To what degree did you see things in the image that are difficult or impossible to describe in words?</h2>
+    ${sliderBlock({
+      id:'lk2',
+      anchors:['Not at all difficult', 'Somewhat difficult', 'Very difficult'],
+      initial:3
+    })}
     <div class="row"><button id="next">Next</button></div>
   `);
-  const slider = el('lk2'), val = el('lk2_val');
-  slider.addEventListener('input', ()=> val.textContent = slider.value);
+  const slider = el('lk2');
   el('next').addEventListener('click', ()=>{
     Object.assign(S.data[S.data.length-1], { describable_1to5: slider.value });
     S.trial++;
@@ -466,7 +474,7 @@ function startTask(){
 
   if (list.length < N_TRIALS) {
     alert(`Need at least ${N_TRIALS} images. We currently see ${list.length}.
-If you’re using preloaded images, make sure the files exist at those paths and that the 'images/' folder is in the same directory as index.html (case-sensitive).`);
+If using preloaded images, make sure the files exist at those paths and that the 'images/' folder is in the same directory as index.html (case-sensitive).`);
     return;
   }
 
