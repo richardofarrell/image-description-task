@@ -457,10 +457,10 @@ function likert_words(){
 
 function likert_describable(){
   view(`
-    <h2>To what extent was what you saw in the image difficult or impossible to describe in words?</h2>
+    <h2>To what extent was the image difficult or impossible to describe in words?</h2>
     ${sliderBlock({
       id: 'lk2',
-      labels: ['The image was | completely describable', 'The image was | mostly describable', 'The image was | moderately describable', 'The image was | mostly undescribable', 'The image was | entirely undescribable'],
+      labels: ['Not at all difficult', 'Slightly difficult', 'Moderately difficult', 'Very difficult', 'Completely impossible to describe'],
       initial: 3
     })
     }
