@@ -168,6 +168,19 @@
     pointer-events: none;
   }
 
+  /* new: make endpoints flush and symmetric */
+.tick-label.start {
+  left: 0% !important;
+  transform: translateX(0);    /* no centering on the left edge */
+  text-align: left;            /* rag toward the rail */
+}
+
+.tick-label.end {
+  left: 100% !important;
+  transform: translateX(-100%); /* align right edge to rail */
+  text-align: right;            /* rag toward the rail */
+}
+
   /* Monospace helper */
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 </style>
