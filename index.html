@@ -183,9 +183,6 @@
     transform: translateX(-50%);   /* center on the 100% edge */
   }
 
-
-
-
   /* Monospace helper */
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 </style>
@@ -278,6 +275,26 @@ const S = {
 };
 
 /* =============== UTILS =============== */
+
+/* ---- Load image list from images/manifest.json (fallback to IMAGES) ---- */
+async function getImageList() {
+  try {
+    const res = await fetch('images/manifest.json', { cache: 'no-cache' });
+    if (res.ok) {
+      const names = await res.json(); // ["file1.jpg", "file2.png", ...]
+      const urls = names
+        .filter(n => /\.(jpe?g|png|gif|webp)$/i.test(n))
+        .map(n => `images/${n}`);
+      if (urls.length) return urls;
+    }
+  } catch (err) {
+    console.warn("Could not load manifest.json:", err);
+  }
+
+  // fallback if manifest.json missing or empty
+  return Array.isArray(IMAGES) ? IMAGES.slice() : [];
+}
+
 const el = id => document.getElementById(id);
 const app = el('app');
 
@@ -529,33 +546,29 @@ function finish(){
 }
 
 /* =============== FLOW =============== */
-function startTask(){
-  // ALWAYS use the hard-coded IMAGES first. Fallback to picked files only if IMAGES is empty.
-  let list = Array.isArray(IMAGES) && IMAGES.length ? IMAGES.slice() : [];
-
-  if (!list.length && S.picked.length){
-    list = S.picked
-      .filter(f => /(\.jpe?g|\.png|\.gif|\.webp)$/i.test(f.name))
-      .map(f => URL.createObjectURL(f));
-  }
+async function startTask(){
+  // Load from manifest.json (fallback to hard-coded IMAGES if needed)
+  let list = await getImageList();
 
   if (list.length < N_TRIALS) {
-    alert(`Need at least ${N_TRIALS} images. We currently see ${list.length}.
-If using preloaded images, make sure the files exist at those paths and that the 'images/' folder is in the same directory as index.html (case-sensitive).`);
+    alert(`Need at least ${N_TRIALS} images. Found ${list.length}.
+If using a manifest, make sure images/manifest.json lists your files.`);
     return;
   }
 
-  S.order = pick(list, N_TRIALS);
+  // Randomise and take first N images
+  shuffle(list);
+  S.order = list.slice(0, N_TRIALS);
   S.trial = 0;
 
-  // Preload and report any broken URLs to help debugging
-  S.order.forEach(src=>{
+  // Preload & warn if any fail
+  S.order.forEach(src => {
     const im = new Image();
-    im.onerror = ()=> console.warn("Image failed to load:", src);
+    im.onerror = () => console.warn("Image failed to load:", src);
     im.src = src;
   });
 
-  fixation();
+  fixation();  // proceed with your usual flow
 }
 
 /* Kickoff */
