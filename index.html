@@ -152,15 +152,16 @@
     margin-top: 10px;
     padding: 0 10px;    /* match input[type=range] horizontal margin */
     overflow: visible;
+    margin: 0 0.5rem;
   }
   
-  /* Give each label some real width and center by default */
+  /* Base tick label */
   .tick-label {
     position: absolute;
     top: 0;
     left: 50%;
-    transform: translateX(-50%);   /* center on its tick */
-    width: 20%;                    /* room for multi-word labels */
+    transform: translateX(-50%);
+    width: 18%;                    /* space each evenly without overlap */
     text-align: center;
     font-size: 20px;
     line-height: 1.2;
@@ -168,22 +169,22 @@
     white-space: normal;
     word-break: normal;
     pointer-events: none;
-    max-width: none;               /* don't fight the width */
   }
   
-  /* Left endpoint: flush left, no centering */
+  /* Left endpoint: center on start tick */
   .tick-label.start {
     left: 0%;
-    transform: none;
-    text-align: left;
+    transform: translateX(0%);     /* keep its center at start */
+    text-align: center;
   }
   
-  /* Right endpoint: flush right, align its right edge to the rail */
+  /* Right endpoint: center on end tick */
   .tick-label.end {
     left: 100%;
-    transform: translateX(-100%);  /* shift full width left */
-    text-align: right;
+    transform: translateX(-100%);  /* shift back half width so its center is on end tick */
+    text-align: center;
   }
+
 
 
   /* Monospace helper */
