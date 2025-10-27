@@ -154,32 +154,37 @@
     overflow: visible;
   }
   
+  /* Give each label some real width and center by default */
   .tick-label {
     position: absolute;
     top: 0;
-    transform: translateX(-50%);
+    left: 50%;
+    transform: translateX(-50%);   /* center on its tick */
+    width: 20%;                    /* room for multi-word labels */
     text-align: center;
     font-size: 20px;
     line-height: 1.2;
     color: #555;
-    white-space: normal;       /* allow wrapping */
-    word-break: normal;        /* don't break every letter */
-    max-width: 20ch;           /* a bit wider so it doesn't turn into a column */
+    white-space: normal;
+    word-break: normal;
     pointer-events: none;
+    max-width: none;               /* don't fight the width */
+  }
+  
+  /* Left endpoint: flush left, no centering */
+  .tick-label.start {
+    left: 0%;
+    transform: none;
+    text-align: left;
+  }
+  
+  /* Right endpoint: flush right, align its right edge to the rail */
+  .tick-label.end {
+    left: 100%;
+    transform: translateX(-100%);  /* shift full width left */
+    text-align: right;
   }
 
-  /* new: make endpoints flush and symmetric */
-.tick-label.start {
-  left: 0% !important;
-  transform: translateX(0);    /* no centering on the left edge */
-  text-align: left;            /* rag toward the rail */
-}
-
-.tick-label.end {
-  left: 99% !important;
-  transform: translateX(-50%); /* align right edge to rail */
-  text-align: right;            /* rag toward the rail */
-}
 
   /* Monospace helper */
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
