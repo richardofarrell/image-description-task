@@ -196,6 +196,8 @@ const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxeKp2eL4rQobST2jPs
 const PROLIFIC = {
   COMPLETION_URL: 'https://app.prolific.com/submissions/complete?cc=YOUR_COMPLETION_CODE'
 };
+let _spaceDown = false;
+
 
 // --- detect Prolific or generate stand-in IDs ---
 function getRecruitInfo() {
@@ -257,11 +259,13 @@ function submitToServer(rows) {
 }
 
 /* =============== CONSTANTS =============== */
-const N_TRIALS = 10;
+const N_TRIALS   = 40;   // <- increase total trials per participant here
+const BLOCK_SIZE = 10;   // break after every 10 images
 const FIXATION_MS = 500;
 const ISI_MS = 500;
 const IMAGE_MS = 2500;
 const WORD_LIMIT = 20;
+
 
 /* =============== STATE =============== */
 const S = {
@@ -377,6 +381,24 @@ function instructions(){
   el('begin').addEventListener('click', startTask);
 }
 
+function takeBreak(){
+  const done = S.trial;
+  const total = S.total ?? 0;
+  const blocksDone = Math.floor(done / BLOCK_SIZE);
+  const blocksTotal = Math.ceil(total / BLOCK_SIZE);
+
+  view(`
+    <h2>Short break</h2>
+    <p>You have completed <strong>${done}</strong> of <strong>${total}</strong> images
+       (${blocksDone}/${blocksTotal} blocks).</p>
+    <p class="help">Press <span class="mono">Continue</span> to resume.<br>
+       For testing: hold <span class="mono">Space</span> and tap <span class="mono">Q</span> to skip to the next break at any time.</p>
+    <div class="row"><button id="continue">Continue</button></div>
+  `);
+  el('continue').addEventListener('click', ()=> fixation());
+}
+
+  
 /* Trial flow */
 function fixation(){
   view(`<div class="stim-stage"><div class="fixation">+</div></div>`);
@@ -491,12 +513,55 @@ function likert_describable(){
   el('next').addEventListener('click', ()=>{
     Object.assign(S.data[S.data.length-1], { describable_1to5: slider.value });
     S.trial++;
-    if (S.trial < N_TRIALS) fixation();
-    else finish();
-  });
+    if (S.trial >= S.total) {
+      finish();
+      return;
+  }
+  // break after each full block
+  if (S.trial % BLOCK_SIZE === 0) {
+    takeBreak();
+  } else {
+    fixation();
+  }
+});
+
+function addSkipHotkey(){
+  document.addEventListener('keydown', _onKeyDown);
+  document.addEventListener('keyup',   _onKeyUp);
+}
+function removeSkipHotkey(){
+  document.removeEventListener('keydown', _onKeyDown);
+  document.removeEventListener('keyup',   _onKeyUp);
+}
+function _onKeyDown(e){
+  if (e.key === ' ') _spaceDown = true;
+  // Space + Q to skip to next break
+  if ((e.key === 'q' || e.key === 'Q') && _spaceDown) {
+    e.preventDefault();
+    skipToNextBreak();
+  }
+}
+function _onKeyUp(e){
+  if (e.key === ' ') _spaceDown = false;
+}
+
+function skipToNextBreak(){
+  if (!S.order || !Number.isFinite(S.total)) return;
+  const K = S.total;
+  if (S.trial >= K) return;
+
+  // compute next block boundary (or end)
+  const inBlockPos = S.trial % BLOCK_SIZE;
+  const toBoundary = inBlockPos === 0 ? 0 : (BLOCK_SIZE - inBlockPos);
+  const next = Math.min(K, S.trial + (toBoundary || BLOCK_SIZE));
+
+  S.trial = next;
+  if (S.trial >= K) finish();
+  else takeBreak(); // land on a break screen
 }
 
 function finish(){
+  removeSkipHotkey();  // clean up the Space+Q listener
   view(`
     <h2>Saving your responses…</h2>
     <p>Please wait a moment. Do not close this tab.</p>
@@ -534,7 +599,7 @@ function finish(){
 
 /* =============== FLOW =============== */
 async function startTask(){
-  // Load from manifest.json (fallback to hard-coded IMAGES if needed)
+  // Load from manifest.json
   let list = await getImageList();
 
   if (list.length < N_TRIALS) {
@@ -545,8 +610,10 @@ If using a manifest, make sure images/manifest.json lists your files.`);
 
   // Randomise and take first N images
   shuffle(list);
+  const K = Math.min(N_TRIALS, list.length);   // total this run
   S.order = list.slice(0, N_TRIALS);
   S.trial = 0;
+  S.total = K;                                 // <-- store total
 
   // Preload & warn if any fail
   S.order.forEach(src => {
@@ -555,6 +622,7 @@ If using a manifest, make sure images/manifest.json lists your files.`);
     im.src = src;
   });
 
+  addSkipHotkey();   // <-- install Space+Q skip
   fixation();  // proceed with your usual flow
 }
 
