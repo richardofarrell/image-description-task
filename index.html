@@ -192,8 +192,6 @@
 
 <script>
 /* ================= CONFIG ================= */
-const IMAGES = [ "images/000000045596.jpg", "images/000000162092.jpg", "images/000000263425.jpg", "images/000000546823.jpg", "images/000000502336.jpg",
-               "images/000000279278.jpg", "images/000000488592.jpg", "images/000000538236.jpg", "images/000000323263.jpg", "images/000000427338.jpg"];
 const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxeKp2eL4rQobST2jPsk4_djVbL4R8qOlyia5gYkYfFv2A_JnxvV8Igk0cNOj95u18-/exec';
 const PROLIFIC = {
   COMPLETION_URL: 'https://app.prolific.com/submissions/complete?cc=YOUR_COMPLETION_CODE'
@@ -278,21 +276,10 @@ const S = {
 
 /* ---- Load image list from images/manifest.json (fallback to IMAGES) ---- */
 async function getImageList() {
-  try {
-    const res = await fetch('images/manifest.json', { cache: 'no-cache' });
-    if (res.ok) {
-      const names = await res.json(); // ["file1.jpg", "file2.png", ...]
-      const urls = names
-        .filter(n => /\.(jpe?g|png|gif|webp)$/i.test(n))
-        .map(n => `images/${n}`);
-      if (urls.length) return urls;
-    }
-  } catch (err) {
-    console.warn("Could not load manifest.json:", err);
-  }
-
-  // fallback if manifest.json missing or empty
-  return Array.isArray(IMAGES) ? IMAGES.slice() : [];
+  const res = await fetch('images/manifest.json', { cache: 'no-cache' });
+  if (!res.ok) throw new Error('manifest.json missing');
+  const names = await res.json();
+  return names.map(n => `images/${n}`);
 }
 
 const el = id => document.getElementById(id);
