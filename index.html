@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="jatos.js"></script>
+<script>
+  jatos.onLoad(function() {
+    console.log("JATOS initialized. Worker ID:", jatos.workerId);
+    start();  // ← your normal task kickoff (welcome screen, etc.)
+  });
+</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Image Description Task</title>
@@ -649,28 +656,24 @@ function skipToNextBreak(){
 }
 
 function finish(){
-  removeSkipHotkey();  // clean up the Space+Q listener
+  removeSkipHotkey();
   view(`
     <h2>Saving your responses…</h2>
     <p>Please wait a moment. Do not close this tab.</p>
   `);
 
-  submitToServer(S.data)
+  jatos.submitResultData(S.data)
     .then(() => {
-      if (Recruit.source === 'prolific') {
-        // send Prolific participants back to completion
-        window.location.href = PROLIFIC.COMPLETION_URL;
+      // If the study was launched from Prolific, redirect back with completion code.
+      const usedProlific = !!(new URLSearchParams(location.search)).get('PROLIFIC_PID');
+      if (usedProlific && PROLIFIC.COMPLETION_URL) {
+        jatos.endStudyAndRedirect(PROLIFIC.COMPLETION_URL);
       } else {
-        // direct link users: show a thank-you + their generated ID
-        view(`
-          <h2>Thanks!</h2>
-          <p>Your responses have been saved successfully.</p>
-          <p class="help">Your participant ID is <span class="mono">${S.pid || Recruit.PROLIFIC_PID}</span>.</p>
-        `);
+        jatos.endStudy(); 
       }
     })
     .catch(err => {
-      // fallback UI if saving fails
+      console.error("Error submitting data to JATOS:", err);
       view(`
         <h2>We couldn’t save your responses automatically</h2>
         <p class="help">${String(err)}</p>
@@ -678,12 +681,12 @@ function finish(){
           <button id="retry">Try Again</button>
           <button id="download">Download CSV (backup)</button>
         </div>
-        <p class="help">If this keeps failing, please contact us with your Participant ID: <span class="mono">${S.pid || Recruit.PROLIFIC_PID}</span>.</p>
       `);
-      el('retry').addEventListener('click', ()=> finish());
-      el('download').addEventListener('click', ()=> dlCSV(`image_descriptions_${S.pid||Recruit.PROLIFIC_PID}.csv`, S.data));
+      el('retry').addEventListener('click', finish);
+      el('download').addEventListener('click', ()=> dlCSV(`image_descriptions_${S.pid}.csv`, S.data));
     });
 }
+
 
 /* =============== FLOW =============== */
 async function startTask(){
@@ -714,8 +717,6 @@ If using a manifest, make sure images/manifest.json lists your files.`);
   fixation();  // proceed with your usual flow
 }
 
-/* Kickoff */
-start();
 </script>
 </body>
 </html>
