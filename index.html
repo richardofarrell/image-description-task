@@ -444,7 +444,6 @@ function isi(){
 function showImage(){
   const src = S.order[S.trial];
   S.t.img_on = nowms();
-  S.t.img_iso = isots();
 
   view(`
     <div class="stim-stage">
@@ -452,17 +451,14 @@ function showImage(){
     </div>
   `);
   const im = el('stim');
-  im.addEventListener('load',  ()=> { S.t.img_loaded = nowms(); });
-  im.addEventListener('error', ()=> { S.t.img_error  = nowms(); });
 
   setTimeout(()=> describe(src), IMAGE_MS);
 }
 
 function describe(src){
   S.t.desc_open = nowms();
-  S.t.desc_iso = isots();
-  S.t.keys = 0; S.t.backspace = 0;
-  S.t.last_keystroke = nowms();
+  S.t.keys = 0; 
+  S.t.backspace = 0;
   
   view(`
     <h2>Describe the image you just saw in 20 words or fewer</h2>
@@ -476,12 +472,8 @@ function describe(src){
   const ta=el('desc'), counter=el('counter'), btn=el('submit');
 
   ta.addEventListener('keydown', e=>{
-    // typing metrics
     S.t.keys++;
     if (e.key === 'Backspace') S.t.backspace++;
-    S.t.last_keystroke = nowms();
-  
-    // Enter = submit
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (!btn.disabled) btn.click();
@@ -506,29 +498,32 @@ function describe(src){
 
   btn.addEventListener('click', ()=>{
     S.t.desc_submit = nowms();
-    const desc_rt_ms = S.t.desc_submit - S.t.desc_open;
-    // calculate block metadata
+
+    // ----- derived timings only -----
+    const desc_rt_ms        = S.t.desc_submit - S.t.desc_open;
+    const img_to_desc_ms    = (S.t.img_on ?? 0) ? (S.t.desc_open  - S.t.img_on)  : null;
+    const img_to_submit_ms  = (S.t.img_on ?? 0) ? (S.t.desc_submit - S.t.img_on) : null;
+
+    // metadata
     const block_index = Math.floor(S.trial / BLOCK_SIZE) + 1;
 
     S.data.push({
-      pid:S.pid, age:S.age, gender:S.gender,
-      trial:S.trial+1, image:src, description: ta.value.trim(),
+      // meta & identifiers
+      event: 'trial',
+      pid: S.pid, age: S.age, gender: S.gender,
+      trial: S.trial + 1,
       block_index: block_index,
-      // timings
-      fix_on_ms:S.t.fix_on ?? null,
-      isi_on_ms:S.t.isi_on ?? null,
-      img_on_ms:S.t.img_on ?? null,
-      img_loaded_ms:S.t.img_loaded ?? null,
-      desc_open_ms:S.t.desc_open ?? null,
-      desc_submit_ms:S.t.desc_submit ?? null,
-      desc_rt_ms: desc_rt_ms,
-      // keystroke metrics
-      keys_total: S.t.keys, backspace_total: S.t.backspace,
-      // absolute stamps (optional but helpful)
-      fix_iso:S.t.fix_iso ?? null,
-      img_iso:S.t.img_iso ?? null,
-      desc_iso:S.t.desc_iso ?? null,
-      submit_iso: isots()
+      image: src,
+      description: ta.value.trim(),
+
+      // derived timings
+      desc_rt_ms,
+      img_to_desc_ms,
+      img_to_submit_ms,
+
+      // typing metrics (optional, keep if useful)
+      keys_total: S.t.keys,
+      backspace_total: S.t.backspace
     });
     likert_words();
   });
