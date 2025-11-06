@@ -197,6 +197,14 @@ const PROLIFIC = {
   COMPLETION_URL: 'https://app.prolific.com/submissions/complete?cc=YOUR_COMPLETION_CODE'
 };
 let _spaceDown = false;
+  
+/* ===== Timing helpers ===== */
+const t0 = performance.now();                        // session start (high-res)
+const session_iso_start = new Date().toISOString(); // wall clock
+
+const nowms = () => Math.round(performance.now());  // ms from page load
+const isots = () => new Date().toISOString();       // wall time
+
 
 
 // --- detect Prolific or generate stand-in IDs ---
@@ -273,7 +281,8 @@ const S = {
   trial: 0,
   order: [],
   data: [],
-  picked: []
+  picked: [],
+  t: {}
 };
 
 /* =============== UTILS =============== */
@@ -382,6 +391,9 @@ function instructions(){
 }
 
 function takeBreak(){
+  S.t.break_start = nowms();
+  S.t.break_iso = isots();
+  
   const done = S.trial;
   const total = S.total ?? 0;
   const blocksDone = Math.floor(done / BLOCK_SIZE);
@@ -395,30 +407,63 @@ function takeBreak(){
        For testing: hold <span class="mono">Space</span> and tap <span class="mono">Q</span> to skip to the next break at any time.</p>
     <div class="row"><button id="continue">Continue</button></div>
   `);
-  el('continue').addEventListener('click', ()=> fixation());
+  el('continue').addEventListener('click', ()=>{
+    S.t.break_end = nowms();
+    S.t.break_dur_ms = S.t.break_end - S.t.break_start;
+
+    // store a break log row (optional separate stream)
+    S.data.push({
+      pid:S.pid, age:S.age, gender:S.gender,
+      trial: S.trial, image: "BREAK",
+      event: "break_end",
+      break_block_index: blocksDone,
+      break_dur_ms: S.t.break_dur_ms,
+      break_start_iso: S.t.break_iso,
+      break_end_iso: isots()
+    });
+
+    fixation();
+  });
 }
 
   
 /* Trial flow */
 function fixation(){
+  S.t.fix_on = nowms();
+  S.t.fix_iso = isots();
   view(`<div class="stim-stage"><div class="fixation">+</div></div>`);
   setTimeout(()=> isi(), FIXATION_MS);
 }
-function isi(){ view(`<div class="stim-stage"></div>`); setTimeout(()=> showImage(), ISI_MS); }
+
+function isi(){
+  S.t.isi_on = nowms();
+  view(`<div class="stim-stage"></div>`);
+  setTimeout(()=> showImage(), ISI_MS);
+}
+
 function showImage(){
   const src = S.order[S.trial];
+  S.t.img_on = nowms();
+  S.t.img_iso = isots();
+
   view(`
     <div class="stim-stage">
       <img class="stim-img" id="stim" src="${src}" alt="stimulus">
     </div>
   `);
-  el('stim').addEventListener('error', ()=>{
-    document.querySelector('.stim-stage').innerHTML =
-      `<div class="help">Could not load image:<br><span class="mono">${src}</span></div>`;
-  });
+  const im = el('stim');
+  im.addEventListener('load',  ()=> { S.t.img_loaded = nowms(); });
+  im.addEventListener('error', ()=> { S.t.img_error  = nowms(); });
+
   setTimeout(()=> describe(src), IMAGE_MS);
 }
+
 function describe(src){
+  S.t.desc_open = nowms();
+  S.t.desc_iso = isots();
+  S.t.keys = 0; S.t.backspace = 0;
+  S.t.last_keystroke = nowms();
+  
   view(`
     <h2>Describe the image you just saw in 20 words or fewer</h2>
     <div class="field" style="text-align:center; max-width:680px;">
@@ -427,7 +472,22 @@ function describe(src){
     </div>
     <div class="row"><button id="submit" disabled>Submit</button></div>
   `);
+  
   const ta=el('desc'), counter=el('counter'), btn=el('submit');
+
+  ta.addEventListener('keydown', e=>{
+    // typing metrics
+    S.t.keys++;
+    if (e.key === 'Backspace') S.t.backspace++;
+    S.t.last_keystroke = nowms();
+  
+    // Enter = submit
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!btn.disabled) btn.click();
+    }
+  });
+ 
   function update(){
     const capped = capIfOver(ta.value, WORD_LIMIT);
     if (capped !== ta.value){
@@ -439,17 +499,33 @@ function describe(src){
     counter.classList.toggle('warning', n===WORD_LIMIT);
     btn.disabled = (n===0 || n>WORD_LIMIT);
   }
-  ta.addEventListener('input', update);
-  ta.addEventListener('paste', ()=> setTimeout(update,0));
-  ta.addEventListener('keydown', e=>{
-    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); if(!btn.disabled) btn.click(); }
-  });
   update();
 
   btn.addEventListener('click', ()=>{
+    S.t.desc_submit = nowms();
+    const desc_rt_ms = S.t.desc_submit - S.t.desc_open;
+    // calculate block metadata
+    const block_index = Math.floor(S.trial / BLOCK_SIZE) + 1;
+
     S.data.push({
       pid:S.pid, age:S.age, gender:S.gender,
-      trial:S.trial+1, image:src, description: ta.value.trim()
+      trial:S.trial+1, image:src, description: ta.value.trim(),
+      block_index: block_index,
+      // timings
+      fix_on_ms:S.t.fix_on ?? null,
+      isi_on_ms:S.t.isi_on ?? null,
+      img_on_ms:S.t.img_on ?? null,
+      img_loaded_ms:S.t.img_loaded ?? null,
+      desc_open_ms:S.t.desc_open ?? null,
+      desc_submit_ms:S.t.desc_submit ?? null,
+      desc_rt_ms: desc_rt_ms,
+      // keystroke metrics
+      keys_total: S.t.keys, backspace_total: S.t.backspace,
+      // absolute stamps (optional but helpful)
+      fix_iso:S.t.fix_iso ?? null,
+      img_iso:S.t.img_iso ?? null,
+      desc_iso:S.t.desc_iso ?? null,
+      submit_iso: isots()
     });
     likert_words();
   });
@@ -481,6 +557,7 @@ function sliderBlock({ id, labels, initial = 3 }) {
 }
 
 function likert_words(){
+  S.t.lk1_open = nowms();
   view(`
     <h2>How many more words would you need to describe everything you saw in the image?</h2>
     ${sliderBlock({
@@ -493,12 +570,17 @@ function likert_words(){
   `);
   const slider = el('lk1');
   el('next').addEventListener('click', ()=>{
-    Object.assign(S.data[S.data.length-1], { need_more_words_1to5: slider.value });
+    S.t.lk1_submit = nowms();
+    Object.assign(S.data[S.data.length-1], {
+      need_more_words_1to5: slider.value,
+      lk1_rt_ms: S.t.lk1_submit - S.t.lk1_open
+    });
     likert_describable();
   });
 }
 
 function likert_describable(){
+  S.t.lk2_open = nowms();
   view(`
     <h2>To what extent was it difficult to put into words what you saw?</h2>
     ${sliderBlock({
@@ -511,17 +593,16 @@ function likert_describable(){
   `);
   const slider = el('lk2');
   el('next').addEventListener('click', ()=>{
-    Object.assign(S.data[S.data.length-1], { describable_1to5: slider.value });
+    S.t.lk2_submit = nowms();
+    Object.assign(S.data[S.data.length-1], {
+      describable_1to5: slider.value,
+      lk2_rt_ms: S.t.lk2_submit - S.t.lk2_open
+    });
     S.trial++;
-    if (S.trial >= S.total) {
-      finish();
-      return;
-  }
-  // break after each full block
-  if (S.trial % BLOCK_SIZE === 0) {
-    takeBreak();
-  } else {
-    fixation();
+
+    if (S.trial >= S.total) { finish(); return; }
+    if (S.trial % BLOCK_SIZE === 0) takeBreak();
+    else fixation();
   }});
 }
 
@@ -555,6 +636,15 @@ function skipToNextBreak(){
   const toBoundary = inBlockPos === 0 ? 0 : (BLOCK_SIZE - inBlockPos);
   const next = Math.min(K, S.trial + (toBoundary || BLOCK_SIZE));
 
+  // log skip event
+  S.data.push({
+    pid:S.pid, age:S.age, gender:S.gender,
+    trial:S.trial+1, image:"SKIP",
+    event:"skip_to_next_break",
+    from_trial:S.trial, to_trial: next,
+    skip_iso:isots(), skip_ms: nowms()
+  });
+  
   S.trial = next;
   if (S.trial >= K) finish();
   else takeBreak(); // land on a break screen
