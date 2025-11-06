@@ -487,7 +487,7 @@ function describe(src){
       if (!btn.disabled) btn.click();
     }
   });
- 
+
   function update(){
     const capped = capIfOver(ta.value, WORD_LIMIT);
     if (capped !== ta.value){
@@ -499,6 +499,9 @@ function describe(src){
     counter.classList.toggle('warning', n===WORD_LIMIT);
     btn.disabled = (n===0 || n>WORD_LIMIT);
   }
+
+  ta.addEventListener('input', update);
+  ta.addEventListener('paste', () => setTimeout(update, 0));
   update();
 
   btn.addEventListener('click', ()=>{
@@ -603,7 +606,7 @@ function likert_describable(){
     if (S.trial >= S.total) { finish(); return; }
     if (S.trial % BLOCK_SIZE === 0) takeBreak();
     else fixation();
-  }});
+  });
 }
 
 function addSkipHotkey(){
@@ -701,7 +704,7 @@ If using a manifest, make sure images/manifest.json lists your files.`);
   // Randomise and take first N images
   shuffle(list);
   const K = Math.min(N_TRIALS, list.length);   // total this run
-  S.order = list.slice(0, N_TRIALS);
+  S.order = list.slice(0, K);
   S.trial = 0;
   S.total = K;                                 // <-- store total
 
